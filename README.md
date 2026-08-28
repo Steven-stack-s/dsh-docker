@@ -16,7 +16,7 @@
 
 ```bash
 # 1. 拉取仓库并配置
-git clone https://github.com/<your-ghcr-owner>/dsh-docker.git && cd dsh-docker
+git clone https://github.com/Steven-stack-s/dsh-docker.git && cd dsh-docker
 cp .env.example .env            # 编辑 .env，填入 DEEPSEEK_API_KEY
 
 # 2. 启动（首次启动会自动安装 DSH，需几分钟）
