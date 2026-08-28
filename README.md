@@ -19,7 +19,7 @@
 
 ```bash
 # 1. Clone and configure
-git clone https://github.com/Steven-stack-s/dsh-docker.git && cd dsh-docker
+git clone https://github.com/steven-stack-s/dsh-docker.git && cd dsh-docker
 cp .env.example .env            # edit .env, fill in DEEPSEEK_API_KEY
 
 # 2. Start (DSH is installed automatically on first boot; takes a few minutes)

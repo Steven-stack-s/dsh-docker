@@ -25,7 +25,7 @@ dsh-docker/
 ### 3.1 Clone the Repo and Configure
 
 ```bash
-git clone https://github.com/Steven-stack-s/dsh-docker.git
+git clone https://github.com/steven-stack-s/dsh-docker.git
 cd dsh-docker
 
 cp .env.example .env
