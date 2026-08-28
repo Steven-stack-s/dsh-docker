@@ -1,0 +1,15 @@
+# 密钥与本地数据不入库
+.env
+.env.local
+
+# 部署产生的本地数据目录
+dsh/
+programs/
+workspace/
+
+# 日志与系统文件
+*.log
+.DS_Store
+
+# Node
+node_modules/

@@ -1,0 +1,60 @@
+# ============================================================================
+# DeepSeek Harness (DSH) — 通用 Docker 部署（适用于任意 Linux/Docker 环境）
+#
+# 【架构】
+#   - 镜像 dsh-docker（node:24 + git + socat + entrypoint）：构建一次，之后不再重建
+#   - DSH 程序本体装在卷 /opt/dsh：日常升级 = 容器内 npm 操作
+#   - dsh web 只监听 127.0.0.1:3081（安全设计），socat 把外部 0.0.0.0:3080 转发进去
+#   - 默认内网直连；远程访问（账号密码 + MFA）按 docs/02-认证与远程访问.md 可选加装
+#
+# 【日常维护】
+#   升级 DSH：docker exec dsh npm install -g @deepseek-ai/dsh@<新版本> && docker restart dsh
+#   装插件：docker exec dsh dsh plugin --profile web add <包名> && docker restart dsh
+#   换密钥：改 .env 的 DEEPSEEK_API_KEY 后 docker compose up -d
+#
+# 【快速开始】
+#   1. cp .env.example .env 并填写 DEEPSEEK_API_KEY
+#   2. docker compose up -d
+#   3. 访问 http://<主机IP>:3080
+# ============================================================================
+
+services:
+  dsh:
+    image: ${DSH_IMAGE:-ghcr.io/<your-ghcr-owner>/dsh-docker:latest}
+    container_name: ${DSH_CONTAINER_NAME:-dsh}
+    restart: unless-stopped
+
+    environment:
+      # 数据根目录（显式指定，不依赖容器内 HOME）
+      - DSH_HOME=/data/dsh
+      # Node 堆上限（按宿主机内存调整；8GB 机器示例）
+      - NODE_OPTIONS=--max-old-space-size=${NODE_MAX_OLD_SPACE:-1024}
+      # 时区
+      - TZ=${TZ:-Asia/Shanghai}
+      # 国内 npm 加速（可选）：首次安装/升级 DSH、装 pnpm 时走国内镜像源
+      - NPM_REGISTRY=${NPM_REGISTRY:-https://registry.npmmirror.com}
+      # ★ 模型 API 密钥（DSH 从环境变量读取，不落盘；换 key 改 .env 重建即可）
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:?请在 .env 中设置 DEEPSEEK_API_KEY}
+
+    volumes:
+      # DSH 程序本体（npm 全局包 + dsh/pnpm 命令）——升级与插件管理写入这里
+      - ${PROGRAMS_DIR:-./programs}:/opt/dsh
+      # DSH 用户数据（会话/配置/插件/凭据/Hindsight 记忆库）——必须持久化
+      - ${DSH_DATA_DIR:-./dsh}:/data/dsh
+      # agent 工作区
+      - ${WORKSPACE_DIR:-./workspace}:/workspace
+
+    ports:
+      # 外部访问 3080；容器内 socat 转发到 dsh 内部 127.0.0.1:3081
+      - "${DSH_PORT:-3080}:3080"
+
+    # 资源限制（按宿主机配置调整；N100 + 8GB 示例给系统留余量）
+    mem_limit: ${MEM_LIMIT:-2g}
+    cpus: ${CPU_LIMIT:-2}
+
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('net').connect(3081,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      start_period: 300s   # 首次启动安装 DSH 需要几分钟
+      retries: 5
