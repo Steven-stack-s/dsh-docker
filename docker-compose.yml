@@ -20,7 +20,7 @@
 
 services:
   dsh:
-    image: ${DSH_IMAGE:-ghcr.io/Steven-stack-s/dsh-docker:latest}
+    image: ${DSH_IMAGE:-ghcr.io/steven-stack-s/dsh-docker:latest}
     container_name: ${DSH_CONTAINER_NAME:-dsh}
     restart: unless-stopped
 

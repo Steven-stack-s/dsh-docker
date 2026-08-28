@@ -49,10 +49,12 @@ jobs:
       - name: Compute image tags
         id: meta
         run: |
+          # ghcr.io 要求镜像名全小写（github.repository 可能含大写）
+          IMAGE_LOWER=$(echo "${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')
           if [[ "${{ github.ref_type }}" == "tag" ]]; then
-            TAGS="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }},${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+            TAGS="${{ env.REGISTRY }}/${IMAGE_LOWER}:${{ github.ref_name }},${{ env.REGISTRY }}/${IMAGE_LOWER}:latest"
           else
-            TAGS="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main"
+            TAGS="${{ env.REGISTRY }}/${IMAGE_LOWER}:main"
           fi
           echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
 
