@@ -2,27 +2,41 @@
 set -e
 
 # ============================================================
-# DSH 容器入口（容器内升级方案）
-#   - 首次启动：把 @deepseek-ai/dsh 安装进挂载卷（/opt/dsh）
+# DSH 容器入口（构建时锁版本 + 容器内升级方案）
+#   - 首次启动：从镜像内 /opt/dsh-seed 复制 dsh+pnpm 到挂载卷 /opt/dsh
+#   - seed 缺失兜底：联网 npm install -g @deepseek-ai/dsh
 #   - 日常升级：docker exec dsh npm install -g @deepseek-ai/dsh@<新版本>
-#               docker restart dsh
+#                docker restart dsh
 #   - 无需重新构建/拉取镜像
 # ============================================================
 
 if ! command -v dsh >/dev/null 2>&1; then
-  echo "[entrypoint] 首次启动：安装 @deepseek-ai/dsh 到卷目录 /opt/dsh ..."
-  if [ -n "$NPM_REGISTRY" ]; then
-    npm install -g @deepseek-ai/dsh --registry="$NPM_REGISTRY"
+  echo "[entrypoint] 首次启动：准备 @deepseek-ai/dsh 到挂载卷 /opt/dsh ..."
+  if [ -x /opt/dsh-seed/bin/dsh ]; then
+    # 从镜像内 seed 复制：离线、版本固定、秒级完成
+    echo "[entrypoint]   从镜像内 seed (/opt/dsh-seed) 复制到 /opt/dsh"
+    mkdir -p /opt/dsh
+    cp -a /opt/dsh-seed/. /opt/dsh/
   else
-    npm install -g @deepseek-ai/dsh
+    # 兜底：seed 不存在（极少见，如手动精简镜像）时联网安装
+    echo "[entrypoint]   seed 不存在，走 npm 在线安装"
+    if [ -n "$NPM_REGISTRY" ]; then
+      npm install -g @deepseek-ai/dsh --registry="$NPM_REGISTRY"
+    else
+      npm install -g @deepseek-ai/dsh
+    fi
   fi
   echo "[entrypoint] DSH 已就绪: $(command -v dsh)"
 fi
 
 # pnpm：dsh plugin 命令（插件管理）转发到 pnpm 执行，必须可用
 if ! command -v pnpm >/dev/null 2>&1; then
-  echo "[entrypoint] 安装 pnpm（插件管理需要）..."
-  if [ -n "$NPM_REGISTRY" ]; then
+  echo "[entrypoint] 准备 pnpm（插件管理需要）..."
+  if [ -x /opt/dsh-seed/bin/pnpm ]; then
+    # dsh 段已复制过 seed 的话 pnpm 应已就位；这里兜底单独复制
+    mkdir -p /opt/dsh
+    cp -a /opt/dsh-seed/. /opt/dsh/
+  elif [ -n "$NPM_REGISTRY" ]; then
     npm install -g pnpm --registry="$NPM_REGISTRY"
   else
     npm install -g pnpm
