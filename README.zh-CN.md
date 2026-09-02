@@ -9,7 +9,7 @@
 
 ## ✨ 方案亮点
 
-- **容器内升级，永不重建镜像**：DSH 程序装在挂载卷 `/opt/dsh`（npm 全局包），升级只需 `docker exec dsh npm install -g @deepseek-ai/dsh@<版本> && docker restart dsh`；镜像只含运行环境，构建一次即可
+- **构建时锁版本 + 容器内升级**：镜像构建时预装 dsh+pnpm 到 seed（`/opt/dsh-seed`），首次启动从 seed 复制到 `/opt/dsh`（离线、版本固定、秒级就绪）；升级只需 `docker exec dsh npm install -g @deepseek-ai/dsh@<版本> && docker restart dsh`，无需重建镜像
 - **安全默认**：`dsh web` 刻意只监听 `127.0.0.1:3081`（官方安全设计），`socat` 把外部 `3080` 转发进去；默认内网直连，远程访问可加装账号密码 + MFA 认证
 - **数据全持久化**：程序 / 用户数据（会话、配置、插件、记忆库）/ 工作区三卷分离，备份 = 复制目录
 - **多架构**：GitHub Actions 自动构建 `linux/amd64` + `linux/arm64`，发布到 `ghcr.io`
@@ -23,7 +23,7 @@
 git clone https://github.com/steven-stack-s/dsh-docker.git && cd dsh-docker
 cp .env.example .env            # 编辑 .env，填入 DEEPSEEK_API_KEY
 
-# 2. 启动（首次启动会自动安装 DSH，需几分钟）
+# 2. 启动（首次启动从镜像内 seed 复制 DSH，秒级就绪）
 docker compose up -d
 
 # 3. 访问 —— 浏览器打开 http://<主机IP>:3080，创建首个管理员后即可使用
@@ -50,8 +50,8 @@ docker compose up -d
 ```
 .
 ├── docker-compose.yml        # 部署配置（变量见 .env.example）
-├── Dockerfile                # 基础镜像：node:24 + git + socat + entrypoint
-├── entrypoint.sh             # 容器入口：首次装 DSH → socat 转发 → 启动 web
+├── Dockerfile                # 基础镜像：node:24 + git + socat + 预装 dsh seed
+├── entrypoint.sh             # 容器入口：从 seed 复制 DSH → socat 转发 → 启动 web
 ├── .env.example              # 环境变量模板（复制为 .env 填写）
 ├── docs/
 │   ├── en/                   # English docs
@@ -70,8 +70,9 @@ docker compose up -d
 宿主机 :3080 ──> 容器 socat(0.0.0.0:3080) ──> dsh web(127.0.0.1:3081)
 ```
 
-- 镜像只装运行环境（`node:24-slim` + git + ca-certificates + tzdata + socat）
-- 首次启动 `entrypoint.sh` 自动 `npm install -g @deepseek-ai/dsh` 到卷 `/opt/dsh`，并安装 pnpm（插件管理需要）
+- 镜像构建时预装 dsh+pnpm 到 seed（`/opt/dsh-seed`），运行环境含 `node:24-slim` + git + ca-certificates + tzdata + socat
+- 首次启动 `entrypoint.sh` 把 seed 复制到挂载卷 `/opt/dsh`（秒级、离线、版本固定），pnpm 随 seed 一起就位
+- 自定义构建：`docker build --build-arg DSH_VERSION=<版本> --build-arg APT_MIRROR=mirrors.aliyun.com -t dsh-docker:<版本> .`
 - 三个持久化卷：`./programs`（DSH 程序本体）、`./dsh`（DSH_HOME 用户数据）、`./workspace`（agent 工作区）
 
 ---

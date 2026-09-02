@@ -8,7 +8,7 @@
 
 ## ✨ Highlights
 
-- **Upgrade inside the container, never rebuild the image** — DSH is installed into the mounted volume `/opt/dsh` (npm global package). Upgrade with `docker exec dsh npm install -g @deepseek-ai/dsh@<version> && docker restart dsh`; the image only contains the runtime, build it once.
+- **Version-pinned at build + upgrade in container** — dsh+pnpm are pre-installed into a seed (`/opt/dsh-seed`) at build time; on first boot the seed is copied to `/opt/dsh` (offline, version-pinned, ready in seconds). Upgrade with `docker exec dsh npm install -g @deepseek-ai/dsh@<version> && docker restart dsh` — no image rebuild needed.
 - **Secure by default** — `dsh web` intentionally listens only on `127.0.0.1:3081` (official security design); `socat` forwards the external `3080` port into it. Intranet-only by default; password + MFA authentication can be added for remote access.
 - **Fully persisted data** — three separate volumes for program / user data (sessions, configs, plugins, memory) / workspace; backup = copy the directory.
 - **Multi-architecture** — GitHub Actions automatically builds `linux/amd64` + `linux/arm64` images and publishes them to `ghcr.io`.
@@ -22,7 +22,7 @@
 git clone https://github.com/steven-stack-s/dsh-docker.git && cd dsh-docker
 cp .env.example .env            # edit .env, fill in DEEPSEEK_API_KEY
 
-# 2. Start (DSH is installed automatically on first boot; takes a few minutes)
+# 2. Start (on first boot, DSH is copied from the in-image seed; ready in seconds)
 docker compose up -d
 
 # 3. Access — open http://<host-ip>:3080 and create the first admin account
@@ -49,8 +49,8 @@ Detailed steps: [docs/en/01-quick-start.md](docs/en/01-quick-start.md)
 ```
 .
 ├── docker-compose.yml        # deployment config (vars in .env.example)
-├── Dockerfile                # base image: node:24 + git + socat + entrypoint
-├── entrypoint.sh             # container entry: install DSH → socat forward → start web
+├── Dockerfile                # base image: node:24 + git + socat + pre-baked dsh seed
+├── entrypoint.sh             # container entry: copy DSH from seed → socat forward → start web
 ├── .env.example              # env template (copy to .env)
 ├── docs/
 │   ├── en/                   # English docs
@@ -69,8 +69,9 @@ Browser
 Host :3080 ──> container socat(0.0.0.0:3080) ──> dsh web(127.0.0.1:3081)
 ```
 
-- The image contains only the runtime (`node:24-slim` + git + ca-certificates + tzdata + socat).
-- On first boot, `entrypoint.sh` automatically runs `npm install -g @deepseek-ai/dsh` into the volume `/opt/dsh`, and installs pnpm (needed for plugin management).
+- At build time, dsh+pnpm are pre-installed into a seed (`/opt/dsh-seed`); the runtime also includes `node:24-slim` + git + ca-certificates + tzdata + socat.
+- On first boot, `entrypoint.sh` copies the seed to the mounted volume `/opt/dsh` (in seconds, offline, version-pinned); pnpm comes along with the seed.
+- Custom build: `docker build --build-arg DSH_VERSION=<version> --build-arg APT_MIRROR=mirrors.aliyun.com -t dsh-docker:<version> .`
 - Three persistent volumes: `./programs` (DSH program), `./dsh` (DSH_HOME user data), `./workspace` (agent workspace).
 
 ---

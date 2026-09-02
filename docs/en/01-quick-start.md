@@ -42,7 +42,7 @@ cp .env.example .env
 docker compose up -d
 ```
 
-On first boot, `entrypoint.sh` automatically installs `@deepseek-ai/dsh` into the volume `/opt/dsh`. On slower networks this takes a few minutes, which is normal (the compose health check already relaxes `start_period` to 300s).
+On first boot, `entrypoint.sh` copies dsh+pnpm from the in-image seed (`/opt/dsh-seed`) to the mounted volume `/opt/dsh` — done in seconds, offline, version-pinned (the health check `start_period` is now shortened to 60s).
 
 ### 3.3 View Startup Logs
 
@@ -53,6 +53,9 @@ docker logs dsh --tail 15
 Expected output:
 
 ```
+[entrypoint] 首次启动：准备 @deepseek-ai/dsh 到挂载卷 /opt/dsh ...
+[entrypoint]   从镜像内 seed (/opt/dsh-seed) 复制到 /opt/dsh
+[entrypoint] DSH 已就绪: /opt/dsh/bin/dsh
 [entrypoint] 启动 socat 转发: 0.0.0.0:3080 -> 127.0.0.1:3081
 [entrypoint] 启动 dsh web (内部 127.0.0.1:3081)
 dsh web: http://127.0.0.1:3081
@@ -78,7 +81,7 @@ Hosts without curl can use an SSH tunnel instead (see [02](02-authentication-rem
 
 - Open `http://<主机IP>:3080` in a browser and log in with the account you just created
 - Go to Settings → Models and confirm the API Key is in effect
-- In `docker ps`, the `dsh` container status is healthy (being "starting" for the first few minutes after first boot is normal)
+- In `docker ps`, the `dsh` container status is healthy (first boot copies from the seed, ready in seconds, so the starting phase is very brief)
 
 ## 6. Stop / Uninstall
 

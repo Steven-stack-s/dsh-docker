@@ -4,7 +4,7 @@
 
 ## 1. Upgrade DSH (No Image Rebuild)
 
-Core design of this setup: DSH is installed into the volume `/opt/dsh`, so upgrading = an npm operation inside the container:
+At build time, dsh+pnpm are pre-installed into a seed (`/opt/dsh-seed`), and on first boot the seed is copied to `/opt/dsh`. Upgrading = an npm operation inside the container that overwrites `/opt/dsh`:
 
 ```bash
 docker exec dsh npm install -g @deepseek-ai/dsh@<新版本>
@@ -17,8 +17,8 @@ Check the current version:
 docker exec dsh dsh --version
 ```
 
-> Only rebuild the image when the base environment changes (Node major version / system dependencies):
-> `docker build -t <你的仓库>/dsh-docker:1 .` and update `DSH_IMAGE` in `.env`.
+> Rebuild the image when: the base environment changes (Node major version / system dependencies), or you want to update the dsh base version baked into the seed:
+> `docker build --build-arg DSH_VERSION=<version> --build-arg APT_MIRROR=mirrors.aliyun.com -t <your-repo>/dsh-docker:<version> .` and update `DSH_IMAGE` in `.env`.
 
 ## 2. Install / Remove Plugins
 

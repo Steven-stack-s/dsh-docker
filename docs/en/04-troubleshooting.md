@@ -9,7 +9,7 @@
 | The page opens but `/api/...` returns 403 | Not authenticated (dsh-remote scenario) | Make sure you are logged in; the first admin must be created via loopback (see [02](02-authentication-remote-access.md)) |
 | Settings page shows `settings are unavailable in this browser` | DSH design: settings are loopback-only | Not a blocker; change settings with curl from the host via `/api/settings.mutate` (see below) |
 | `crypto.randomUUID is not a function` | Accessing from a non-HTTPS / non-localhost origin (browser secure context) | Use `localhost`, an SSH tunnel, or a reverse proxy with HTTPS (see [02](02-authentication-remote-access.md)) |
-| Installing DSH on first boot is slow | Slow npm network in China | `.env` already defaults to `NPM_REGISTRY=https://registry.npmmirror.com`; verify it takes effect |
+| Copying from the seed on first boot is slow | Windows + WSL bind mount crosses filesystems | Seconds on Linux; on Windows, use a docker named volume or wait for the first copy |
 | `docker compose up` reports `DEEPSEEK_API_KEY` not set | `.env` is not configured | Run `cp .env.example .env` and fill in the key |
 
 ## Configure models with curl on the host
