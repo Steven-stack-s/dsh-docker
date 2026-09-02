@@ -17,6 +17,7 @@ if ! command -v dsh >/dev/null 2>&1; then
     echo "[entrypoint]   从镜像内 seed (/opt/dsh-seed) 复制到 /opt/dsh"
     mkdir -p /opt/dsh
     cp -a /opt/dsh-seed/. /opt/dsh/
+    rm -rf /opt/dsh-seed   # 复制完清理：容器内不留重复副本（镜像层 seed 不变；回滚需 down+up 新容器）
   else
     # 兜底：seed 不存在（极少见，如手动精简镜像）时联网安装
     echo "[entrypoint]   seed 不存在，走 npm 在线安装"
@@ -36,6 +37,7 @@ if ! command -v pnpm >/dev/null 2>&1; then
     # dsh 段已复制过 seed 的话 pnpm 应已就位；这里兜底单独复制
     mkdir -p /opt/dsh
     cp -a /opt/dsh-seed/. /opt/dsh/
+    rm -rf /opt/dsh-seed   # 兜底复制后同样清理
   elif [ -n "$NPM_REGISTRY" ]; then
     npm install -g pnpm --registry="$NPM_REGISTRY"
   else
