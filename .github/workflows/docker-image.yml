@@ -2,11 +2,12 @@
 # 构建并发布 DSH 基础镜像到 GitHub Container Registry (ghcr.io)
 #
 # 触发：
-#   - 推送 v* tag（如 v1.0.0）→ 镜像 tag 为版本号 + latest
-#   - 推送 main 分支 → 镜像 tag 为 main
+#   - 推送 v* tag（如 v0.1.2-rc.1）→ 镜像 tag 为版本号 + latest，
+#     且 tag 名去掉 v 前缀作为 DSH_VERSION 构建参数 → 镜像 seed 与 dsh 版本严格一致
+#   - 推送 main 分支 → 镜像 tag 为 main，seed 装 npm latest（跟随 npm 发布节奏）
 #
-# 说明：镜像只含运行环境（node:24 + git + socat + entrypoint），不含 DSH 程序
-# 本体（程序在容器启动时装入挂载卷 /opt/dsh，见 entrypoint.sh）。
+# 说明：镜像含运行环境 + dsh/pnpm seed（/opt/dsh-seed），首次启动由 entrypoint
+# 复制到挂载卷 /opt/dsh；日常升级走 docker exec npm install（见 entrypoint.sh）。
 # ============================================================================
 
 name: build-and-push-image
@@ -53,10 +54,15 @@ jobs:
           IMAGE_LOWER=$(echo "${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')
           if [[ "${{ github.ref_type }}" == "tag" ]]; then
             TAGS="${{ env.REGISTRY }}/${IMAGE_LOWER}:${{ github.ref_name }},${{ env.REGISTRY }}/${IMAGE_LOWER}:latest"
+            # tag 名即 dsh 版本：v0.1.2-rc.1 -> 0.1.2-rc.1（镜像 seed 与 dsh 版本一致）
+            DSH_VERSION="${{ github.ref_name }}"
+            DSH_VERSION="${DSH_VERSION#v}"
           else
             TAGS="${{ env.REGISTRY }}/${IMAGE_LOWER}:main"
+            DSH_VERSION="latest"
           fi
           echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
+          echo "dsh_version=${DSH_VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -65,3 +71,5 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
+          build-args: |
+            DSH_VERSION=${{ steps.meta.outputs.dsh_version }}
