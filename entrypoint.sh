@@ -55,4 +55,14 @@ fi
 
 echo "[entrypoint] 启动 dsh web (内部 127.0.0.1:3081)"
 # --no-open：容器内无浏览器，禁用 dsh 自动打开浏览器
-exec dsh web --port 3081 --no-open
+# --trusted-host：dsh 0.1.2 的 /api 通道仅信任 loopback 或白名单 Host；
+#   浏览器经局域网 IP / 隧道域名访问时被 403 拒绝（页面能开但连接异常）。
+#   通过 DSH_TRUSTED_HOSTS 传入（逗号分隔，如 "192.168.1.5:3080,app.xx.com"）逐一加白。
+TRUSTED_ARGS=""
+if [ -n "$DSH_TRUSTED_HOSTS" ]; then
+  echo "[entrypoint] 白名单 Host: $DSH_TRUSTED_HOSTS"
+  for h in $(echo "$DSH_TRUSTED_HOSTS" | tr ',' ' '); do
+    TRUSTED_ARGS="$TRUSTED_ARGS --trusted-host $h"
+  done
+fi
+exec dsh web --port 3081 --no-open $TRUSTED_ARGS

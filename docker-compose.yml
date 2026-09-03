@@ -35,6 +35,10 @@ services:
       - NPM_REGISTRY=${NPM_REGISTRY:-https://registry.npmmirror.com}
       # ★ 模型 API 密钥（DSH 从环境变量读取，不落盘；换 key 改 .env 重建即可）
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:?请在 .env 中设置 DEEPSEEK_API_KEY}
+      # ★ /api Host 信任白名单（dsh 0.1.2 起仅信任 loopback 或白名单 Host）：
+      #   局域网 IP 或隧道域名访问时必须填入，否则页面能开但连接异常（/api 403）。
+      #   逗号分隔，可带端口，如 "192.168.1.5:3080,app.xx.ugdocker.link"
+      - DSH_TRUSTED_HOSTS=${DSH_TRUSTED_HOSTS:-}
 
     volumes:
       # DSH 程序本体（npm 全局包 + dsh/pnpm 命令）——升级与插件管理写入这里
