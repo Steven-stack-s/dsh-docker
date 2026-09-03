@@ -2,8 +2,10 @@
 # 构建并发布 DSH 基础镜像到 GitHub Container Registry (ghcr.io)
 #
 # 触发：
-#   - 推送 v* tag（如 v0.1.2-rc.1）→ 镜像 tag 为版本号 + latest，
-#     且 tag 名去掉 v 前缀作为 DSH_VERSION 构建参数 → 镜像 seed 与 dsh 版本严格一致
+#   - 推送 v* tag → 镜像 tag 为该 tag + latest
+#     tag 格式：v<项目版本>-dsh<dsh版本>，如 v0.1.0-dsh0.1.2-rc.1
+#     dsh 版本作为 DSH_VERSION 构建参数 → 镜像 seed 与 dsh 版本严格一致；
+#     两个版本号同时写入镜像 label（docker inspect 可见）
 #   - 推送 main 分支 → 镜像 tag 为 main，seed 装 npm latest（跟随 npm 发布节奏）
 #
 # 说明：镜像含运行环境 + dsh/pnpm seed（/opt/dsh-seed），首次启动由 entrypoint
@@ -53,16 +55,24 @@ jobs:
           # ghcr.io 要求镜像名全小写（github.repository 可能含大写）
           IMAGE_LOWER=$(echo "${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')
           if [[ "${{ github.ref_type }}" == "tag" ]]; then
-            TAGS="${{ env.REGISTRY }}/${IMAGE_LOWER}:${{ github.ref_name }},${{ env.REGISTRY }}/${IMAGE_LOWER}:latest"
-            # tag 名即 dsh 版本：v0.1.2-rc.1 -> 0.1.2-rc.1（镜像 seed 与 dsh 版本一致）
-            DSH_VERSION="${{ github.ref_name }}"
-            DSH_VERSION="${DSH_VERSION#v}"
+            TAG="${{ github.ref_name }}"           # v0.1.0-dsh0.1.2-rc.1
+            # 双版本格式校验：必须形如 v<项目版本>-dsh<dsh版本>
+            if [[ "$TAG" != *-dsh* ]]; then
+              echo "::error::tag 必须形如 v<项目版本>-dsh<dsh版本>，如 v0.1.0-dsh0.1.2-rc.1"
+              exit 1
+            fi
+            PROJ_VERSION="${TAG%%-dsh*}"           # v0.1.0
+            PROJ_VERSION="${PROJ_VERSION#v}"       # 0.1.0
+            DSH_VERSION="${TAG#*-dsh}"             # 0.1.2-rc.1
+            TAGS="${{ env.REGISTRY }}/${IMAGE_LOWER}:${TAG},${{ env.REGISTRY }}/${IMAGE_LOWER}:latest"
           else
             TAGS="${{ env.REGISTRY }}/${IMAGE_LOWER}:main"
             DSH_VERSION="latest"
+            PROJ_VERSION=""
           fi
           echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
           echo "dsh_version=${DSH_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "proj_version=${PROJ_VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -73,3 +83,6 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
             DSH_VERSION=${{ steps.meta.outputs.dsh_version }}
+          labels: |
+            org.opencontainers.image.version=${{ steps.meta.outputs.proj_version }}
+            org.opencontainers.image.dsh-version=${{ steps.meta.outputs.dsh_version }}
